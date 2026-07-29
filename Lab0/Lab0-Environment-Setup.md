@@ -1,108 +1,161 @@
-# Lab 0 - Environment Setup
+# Lab 0 - Environment Setup Report
 
-## Objective
+## 1. Lab objective
 
-Prepare and validate a local cloud-native lab environment using Docker, the AWS CLI, OpenSSL, LocalStack, and a Kubernetes-in-Docker (`kind`) cluster.
+This lab establishes a repeatable local environment for cloud-native development and security exercises. The objective is to confirm that containers, a local AWS emulator, a Kubernetes cluster, command-line administration tools, and cryptographic utilities are installed and can communicate correctly.
 
-## Evidence reviewed
+The completed environment consists of Docker, AWS CLI, OpenSSL and oathtool, LocalStack, and Kubernetes using kind and kubectl.
 
-The evidence folder contains eight screenshots (`1.png` to `8.png`). They demonstrate that every required component was available and working at the time of validation.
+## 2. Learning outcomes
 
-| Requirement | Validation performed | Result |
+After completing this lab, the learner should be able to:
+
+1. Verify that Docker is installed and can run containers.
+2. Identify the versions of the AWS CLI, Kubernetes tools, and cryptographic utilities installed on a Linux host.
+3. Confirm that LocalStack is running and exposing AWS-compatible services locally.
+4. Check Kubernetes control-plane connectivity and node readiness.
+5. Use the AWS CLI against a local endpoint instead of an external AWS account.
+6. Record commands, outputs, and screenshots as reproducible technical evidence.
+
+## 3. Environment and evidence
+
+All commands were executed in a Kali Linux terminal. The evidence folder contains the screenshots cited below.
+
+| Component | Confirmed version / state | Evidence |
 | --- | --- | --- |
-| Docker | `docker --version` | Docker `28.5.2` installed |
-| Docker engine | `sudo docker run hello-world` | Image downloaded and container completed successfully |
-| AWS CLI | `aws --version` | AWS CLI `2.36.9` installed |
-| Kubernetes tools | `kind --version` and `kubectl version --client` | kind `0.23.0`; kubectl client `v1.33.4` |
-| OpenSSL | `openssl version` and `oathtool --version` | OpenSSL `3.6.2`; oathtool `2.6.14` |
-| LocalStack | `curl http://localhost:4566/_localstack/health` | Services reported as available; LocalStack `3.0.2` Community |
-| Kubernetes cluster | `kubectl cluster-info --context kind-ccse` and `kubectl get nodes` | Control plane and CoreDNS running; node `ccse-control-plane` Ready |
-| Local AWS identity | `aws --endpoint-url=$EP sts get-caller-identity` | Local test identity returned successfully |
+| Docker | Docker `28.5.2`; test container completed | `1.png`, `2.png` |
+| AWS CLI | AWS CLI `2.36.9` | `3.png` |
+| kind and kubectl | kind `0.23.0`; kubectl `v1.33.4` | `4.png` |
+| OpenSSL and oathtool | OpenSSL `3.6.2`; oathtool `2.6.14` | `5.png` |
+| LocalStack | Community `3.0.2`; services available | `6.png` |
+| Kubernetes cluster | `ccse-control-plane` Ready | `7.png` |
+| Local AWS identity | Account `000000000000` returned | `8.png` |
 
-## Step-by-step setup and validation
+## 4. Procedure, commands, results, and evidence
 
-### 1. Verify Docker
+### Step 1 - Check Docker installation
 
-Run the following command:
+**Used command**
 
 ```bash
 docker --version
 ```
 
-Expected result: Docker prints its installed version. The captured evidence shows version `28.5.2`.
+**Result:** Docker version `28.5.2` was returned. This confirms that the Docker client is installed.
 
-Then confirm that the Docker daemon can run a container:
+![Figure 1. Docker version command output](1.png)
+
+### Step 2 - Verify that Docker can run a container
+
+**Used command**
 
 ```bash
 sudo docker run hello-world
 ```
 
-Expected result: the command prints `Hello from Docker!` and confirms that the installation appears to be working correctly. The evidence shows that the image was pulled and the test container ran successfully.
+**Result:** Docker downloaded the `hello-world` image, created a container, ran it, and printed `Hello from Docker!`. This confirms that the Docker daemon is available and can pull and execute an image.
 
-### 2. Verify the AWS CLI
+![Figure 2. Successful Docker hello-world container](2.png)
 
-Run:
+### Step 3 - Check AWS CLI installation
+
+**Used command**
 
 ```bash
 aws --version
 ```
 
-Expected result: an AWS CLI version string. The supplied evidence records `aws-cli/2.36.9` on Kali Linux.
+**Result:** The terminal reported `aws-cli/2.36.9` with Python `3.14.6` on Kali Linux. The AWS CLI is ready for later local AWS service commands.
 
-### 3. Verify Kubernetes tooling
+![Figure 3. AWS CLI version](3.png)
 
-Check the local Kubernetes tools:
+### Step 4 - Check Kubernetes tools
+
+**Used commands**
 
 ```bash
 kind --version
 kubectl version --client
 ```
 
-Expected result: both commands return version information. The evidence confirms kind `0.23.0` and a kubectl client version of `v1.33.4` with Kustomize `v5.5.0`.
+**Result:** kind version `0.23.0` and kubectl client version `v1.33.4` were returned. These tools can create and administer the local Kubernetes cluster.
 
-### 4. Verify cryptographic utilities
+![Figure 4. kind and kubectl client versions](4.png)
 
-Run:
+### Step 5 - Check OpenSSL and oathtool
+
+**Used commands**
 
 ```bash
 openssl version
 oathtool --version
 ```
 
-Expected result: both commands display installed versions. The evidence confirms OpenSSL `3.6.2` and oathtool `2.6.14`.
+**Result:** OpenSSL `3.6.2` and oathtool `2.6.14` were available. These utilities support the cryptographic and one-time-password tasks used in later security work.
 
-### 5. Verify LocalStack
+![Figure 5. OpenSSL and oathtool versions](5.png)
 
-Query the LocalStack health endpoint:
+### Step 6 - Check LocalStack health
+
+**Used command**
 
 ```bash
 curl http://localhost:4566/_localstack/health
 ```
 
-Expected result: a JSON document showing the LocalStack services as `available`. The submitted result reports the available state for services including IAM, S3, Lambda, DynamoDB, CloudWatch, SQS, SNS, STS, and more; it identifies the installation as LocalStack Community `3.0.2`.
+**Result:** LocalStack returned a health JSON response. The response shows that services including IAM, S3, Lambda, DynamoDB, CloudWatch, SQS, SNS, STS, and others were `available`. The instance is LocalStack Community version `3.0.2`.
 
-### 6. Verify the kind Kubernetes cluster
+![Figure 6. LocalStack health endpoint response](6.png)
 
-Confirm cluster connectivity and node health:
+### Step 7 - Check the Kubernetes cluster and node
+
+**Used commands**
 
 ```bash
 kubectl cluster-info --context kind-ccse
 kubectl get nodes
 ```
 
-Expected result: Kubernetes control-plane and CoreDNS endpoints are shown, and the cluster node is in the `Ready` state. The evidence shows `ccse-control-plane` as `Ready`, role `control-plane`, Kubernetes version `v1.30.0`.
+**Result:** The Kubernetes control plane and CoreDNS were reachable. The node `ccse-control-plane` had status `Ready`, role `control-plane`, and Kubernetes version `v1.30.0`. The local cluster is operational.
 
-### 7. Verify AWS access through LocalStack
+![Figure 7. Kubernetes cluster and node status](7.png)
 
-Set the LocalStack endpoint in the current shell, then query the security-token service:
+### Step 8 - Verify AWS CLI access through LocalStack
+
+**Used command**
 
 ```bash
-EP=http://localhost:4566
-aws --endpoint-url="$EP" sts get-caller-identity
+aws $EP sts get-caller-identity
 ```
 
-Expected result: a JSON identity response. The evidence shows the expected LocalStack test identity: account `000000000000`, user ID `AKIAIOSFODNN7EXAMPLE`, and the corresponding root ARN.
+`$EP` was configured in the shell to direct the AWS CLI to the LocalStack endpoint. An equivalent explicit form is:
 
-## Conclusion
+```bash
+aws --endpoint-url=http://localhost:4566 sts get-caller-identity
+```
 
-All environment checks in the supplied evidence passed. Docker can run containers, LocalStack is healthy, the `kind-ccse` Kubernetes cluster is operational, and AWS CLI calls reach LocalStack successfully. The Lab 0 environment is ready for subsequent exercises.
+**Result:** The command returned the LocalStack test identity, including account `000000000000` and root ARN `arn:aws:iam::000000000000:root`. This proves that the AWS CLI request reached LocalStack successfully rather than a live AWS account.
+
+![Figure 8. AWS STS identity returned by LocalStack](8.png)
+
+## 5. Overall result
+
+Every validation step passed. Docker can run images, the required command-line tools are installed, LocalStack is healthy, the `kind-ccse` Kubernetes cluster has a ready control-plane node, and the AWS CLI can successfully call LocalStack STS. The Lab 0 environment is ready for subsequent exercises.
+
+## 6. Lessons learned
+
+1. Installation alone is not enough; an end-to-end test such as `docker run hello-world` proves that the Docker client and daemon work together.
+2. Version commands provide a quick baseline for troubleshooting and ensure that all members of a lab group can compare their environments.
+3. LocalStack makes it possible to practise AWS CLI workflows locally, reducing the risk and cost of using a real cloud account during development.
+4. `kubectl cluster-info` tests control-plane connectivity, while `kubectl get nodes` confirms whether the cluster node is healthy; both checks are needed.
+5. Capturing command output as screenshots creates an auditable record and makes it easier to reproduce or diagnose the environment later.
+
+## 7. References
+
+1. IKB42603 Lab 0 Environment Setup Cheatsheet, `IKB42603_Lab0_Environment_Setup_Cheatsheet.pdf`, supplied with this lab.
+2. Docker Docs, *Get Started*: https://docs.docker.com/get-started/
+3. AWS CLI User Guide: https://docs.aws.amazon.com/cli/
+4. LocalStack Documentation: https://docs.localstack.cloud/
+5. Kubernetes Documentation: https://kubernetes.io/docs/
+6. kind Documentation: https://kind.sigs.k8s.io/
+
