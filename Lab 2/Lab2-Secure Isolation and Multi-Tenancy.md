@@ -31,7 +31,7 @@ kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/
 kubectl -n kube-system rollout status daemonset/calico-node --timeout=180s
 ```
 
-### Verification summary
+### Result
 
 The cluster was ready for policy testing after Calico completed its rollout:
 
@@ -50,6 +50,15 @@ Calico is required because a `NetworkPolicy` has effect only when the installed 
 3. Listed the resources for both tenants:
 
 ```bash
+kubectl create namespace tenant-a
+kubectl create namespace tenant-b
+
+kubectl -n tenant-a create deployment web --image=nginx
+kubectl -n tenant-b create deployment web --image=nginx
+
+kubectl -n tenant-a expose deployment web --port=80
+kubectl -n tenant-b expose deployment web --port=80
+
 kubectl get pods,svc -n tenant-a
 kubectl get pods,svc -n tenant-b
 ```
@@ -58,13 +67,10 @@ kubectl get pods,svc -n tenant-b
 
 ![Task 1 - Two Tenants on One Cluster](TASK%201%20-%20Two%20Tenants%20on%20One%20Cluster.png)
 
-### Verification summary
+### Result
 
 The result shows one running `web` pod and one `web` ClusterIP service in each namespace. Tenant A uses service IP `10.96.201.208`, while tenant B uses `10.96.153.133`. This verifies separate namespaced workloads and services on the same cluster.
 
-### Short question: Does a namespace alone provide complete tenant isolation?
-
-**Answer:** No. A namespace separates scoped Kubernetes objects, but does not automatically prevent cross-tenant networking, resource exhaustion, or incorrectly granted RBAC permissions.
 
 ## Task 2 - Default-Open Risk
 
@@ -74,21 +80,22 @@ The result shows one running `web` pod and one `web` ClusterIP service in each n
 2. From `tenant-a`, ran a temporary curl pod and requested the tenant B service:
 
 ```bash
+kubectl get svc web -n tenant-b -o jsonpath='{.spec.clusterIP}'; echo
 kubectl -n tenant-a run probe --rm -it --image=curlimages/curl --restart=Never \
   -- curl -s -m 5 http://$B_IP -o /dev/null -w 'HTTP %{http_code}\n'
 ```
-
+The probe returned:
+```bash
+HTTP 200
+```
 ### Screenshot
 
 ![Task 2 - Default-Open Risk](TASK%202%20-%20Default-Open%20Risk.png)
 
-### Verification summary
+### Result
 
 The request returned `HTTP 200`. A pod in `tenant-a` successfully reached a service in `tenant-b` before restrictive network policies were applied.
 
-### Short question: Why is the HTTP 200 response a security risk?
-
-**Answer:** It proves that the tenants can communicate by default. A compromised tenant A workload could probe or access tenant B services unless network policy explicitly restricts the traffic.
 
 ## Task 3 - Resource Quota
 
@@ -99,6 +106,19 @@ The request returned `HTTP 200`. A pod in `tenant-a` successfully reached a serv
 3. Verified the quota:
 
 ```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tenant-a-quota
+  namespace: tenant-a
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 512Mi
+    pods: "5"
+EOF
+
 kubectl describe resourcequota tenant-a-quota -n tenant-a
 ```
 
@@ -106,13 +126,10 @@ kubectl describe resourcequota tenant-a-quota -n tenant-a
 
 ![Task 3 - Resource Quota](TASK%203%20-%20Resource%20Quota.png)
 
-### Verification summary
+### Result
 
 The output shows hard limits of `pods: 5`, `requests.cpu: 1`, and `requests.memory: 512Mi` for `tenant-a`. This limits tenant A's share of cluster resources and helps preserve availability for other tenants.
 
-### Short question: Why is ResourceQuota important in multi-tenancy?
-
-**Answer:** It prevents one tenant from exhausting shared compute capacity by limiting workloads and total requested CPU and memory in the namespace.
 
 ## Task 4 - Default-Deny Network Isolation
 
@@ -122,21 +139,26 @@ The output shows hard limits of `pods: 5`, `requests.cpu: 1`, and `requests.memo
 2. Retested using a temporary curl probe with CPU and memory requests:
 
 ```bash
-kubectl -n tenant-a run probe --rm -it --image=curlimages/curl --restart=Never \
-  --overrides='{"apiVersion":"v1","spec":{"restartPolicy":"Never","containers":[{"name":"probe","image":"curlimages/curl","resources":{"requests":{"cpu":"100m","memory":"64Mi"}}}]}}'
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: tenant-b
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+EOF
 ```
 
 ### Screenshot
 
 ![Task 4 - Default-Deny Network Isolation](TASK%204%20-%20Default-Deny%20Network%20Isolation.png)
 
-### Verification summary
+### Result
 
 The probe was deleted and the command timed out waiting for its condition. This is evidence that the workload did not proceed normally after restrictive controls were introduced. A default-deny policy requires explicit allow rules for required traffic.
 
-### Short question: What does a default-deny NetworkPolicy achieve?
-
-**Answer:** It blocks traffic by default and changes the model to allow-listing: only traffic permitted by a matching policy can pass. This reduces accidental cross-tenant communication.
 
 ## Task 5 - Storage and Secret Isolation
 
@@ -146,21 +168,30 @@ The probe was deleted and the command timed out waiting for its condition. This 
 2. Checked its ability to read secrets in both namespaces:
 
 ```bash
+kubectl -n tenant-a create secret generic data --from-literal=value=SECRET_A
+kubectl -n tenant-b create secret generic data --from-literal=value=SECRET_B
+
+kubectl -n tenant-a create serviceaccount app-a
+kubectl -n tenant-a create role reader --verb=get --resource=secrets
+kubectl -n tenant-a create rolebinding rb --role=reader --serviceaccount=tenant-a:app-a
+
+SA=system:serviceaccount:tenant-a:app-a
 kubectl auth can-i get secrets -n tenant-a --as=$SA
 kubectl auth can-i get secrets -n tenant-b --as=$SA
 ```
-
+Authorization results:
+```bash
+yes
+no
+```
 ### Screenshot
 
 ![Task 5 - Storage and Secret Isolation](TASK%205%20-%20Storage%20and%20Secret%20Isolation.png)
 
-### Verification summary
+### Result
 
 The service account received `yes` for `tenant-a` and `no` for `tenant-b`. This confirms that its secret-read permission is scoped to its own tenant namespace.
 
-### Short question: How does RBAC protect tenant secrets?
-
-**Answer:** RBAC grants a service account only the permissions it needs. With namespace-scoped roles, tenant A's identity cannot read tenant B secrets.
 
 ## Task 6 - Data Remanence and Secure Wipe
 
@@ -187,13 +218,56 @@ docker run --rm -v cscse-vol:/data alpine sh -c \
 
 ![Task 6 - Secure Wipe Output](TASK%206%20-%20Secure%20Wipe%20Output.png)
 
-### Verification summary
+### Result
 
 The scan completed with `scan-done` and did not display the sensitive marker through visible files. The wipe command reported `1024 bytes (1.0KB) copied` followed by `wiped`, showing that the file was overwritten before deletion.
 
-### Short question: Does deleting a file guarantee that sensitive data is gone?
+## Verification
 
-**Answer:** No. Deletion normally removes the file reference rather than immediately erasing all underlying data. Overwriting may reduce exposure, but snapshots, journaling, SSD wear levelling, and cloud-storage copies can retain data. Use the storage platform's approved sanitisation or cryptographic-erasure process.
+```bash
+kubectl get pods,svc -n tenant-a
+kubectl get pods,svc -n tenant-b
+kubectl describe resourcequota tenant-a-quota -n tenant-a
+kubectl auth can-i get secrets -n tenant-a --as=$SA
+kubectl auth can-i get secrets -n tenant-b --as=$SA
+```
+
+The recorded results confirmed that both tenant namespaces had a running `web` pod and separate `web` ClusterIP services. The connection test from `tenant-a` returned `HTTP 200` before network restrictions were applied. The resource-quota output confirmed limits of five pods, one requested CPU core, and 512 MiB requested memory for `tenant-a`. After the default-deny policy task, the probe command ended with `error: timed out waiting for the condition`. RBAC verification returned `yes` for tenant A secrets and `no` for tenant B secrets. Finally, the storage test finished with `scan-done`, while the overwrite operation reported `1024 bytes (1.0KB) copied` and `wiped`.
+
+![ResourceQuota verification](TASK%203%20-%20Resource%20Quota.png)
+
+![Network isolation verification](TASK%204%20-%20Default-Deny%20Network%20Isolation.png)
+
+![RBAC verification](TASK%205%20-%20Storage%20and%20Secret%20Isolation.png)
+
+## Short Questions
+
+### Q1. Why can containers in different namespaces reach each other by default, and why is that dangerous in a multi-tenant cloud?
+
+Namespaces separate and organise Kubernetes resources, but they do not automatically block network traffic. In this lab, the probe from `tenant-a` returned `HTTP 200` when it accessed the tenant B service. This is dangerous because a tenant workload could reach another tenant's service, enabling unauthorised access or lateral movement if no network policy is applied.
+
+### Q2. Explain the default-deny principle and how the NetworkPolicy task implements it.
+
+Default-deny means traffic is blocked unless an explicit policy allows it. In the lab, after the default-deny policy task, the temporary probe ended with `error: timed out waiting for the condition`. This result is consistent with restrictive network controls preventing the previously permitted communication. Required traffic must be added through specific allow policies.
+
+### Q3. How do virtual machines and containers differ in isolation strength? When would you add a VM boundary?
+
+Containers share the host operating system kernel, whereas virtual machines run separate guest operating systems with their own kernels. Therefore, a VM generally provides a stronger isolation boundary. A VM boundary should be added for highly untrusted tenants, workloads handling particularly sensitive data, or when compliance requires stronger separation than namespace, RBAC, quota, and network-policy controls can provide.
+
+### Q4. What is data remanence, and why is cryptographic erasure the preferred cloud solution?
+
+Data remanence is residual data that may remain after normal deletion. In this lab, the scan ended with `scan-done` and no visible `SENSITIVE` match, but that file-level result cannot prove all underlying copies were erased. Cloud users do not control every physical block, snapshot, or replica. Cryptographic erasure is preferred because destroying the encryption key makes encrypted data unreadable without requiring access to every physical copy.
+
+### Q5. Which isolation dimension did each task exercise?
+
+| Task | Isolation dimension demonstrated by the result |
+|---|---|
+| Task 1 | Compute and logical isolation through namespaces, separate pods, and separate services. |
+| Task 2 | Network-isolation risk: cross-tenant HTTP access succeeded with `HTTP 200`. |
+| Task 3 | Resource isolation through `ResourceQuota` limits on pods, CPU, and memory. |
+| Task 4 | Network isolation through a default-deny `NetworkPolicy` enforced by Calico. |
+| Task 5 | Secret and access isolation through namespace-scoped RBAC permissions. |
+| Task 6 | Storage isolation and data-lifecycle protection through remanence testing and secure wipe. |
 
 ## Conclusion
 
