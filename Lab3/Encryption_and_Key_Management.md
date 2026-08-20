@@ -265,19 +265,22 @@ Appending a single character to `tampered.txt` produced a different SHA-256 dige
 
 ![Task 7: differing SHA-256 values and chained hashes](Task%207.png)
 
-## Short-answer questions
+## Short-Answer Questions
 
-1. **Why use AES for the record but RSA for the key exchange/signature workflow?**  
-   AES is fast and suitable for encrypting data of any practical size. RSA is comparatively expensive and is normally used for small values, such as keys, or for signatures. Envelope encryption combines those strengths.
+### Q1. Compare symmetric and asymmetric encryption: speed, key distribution, and typical use.
+   Symmetric encryption uses one shared key for encryption and decryption. It is fast and suitable for large files, databases, and backups, but both parties must obtain and protect the same secret key securely. Asymmetric encryption uses a public/private key pair. It is slower, but the public key can be shared openly; it is commonly used for key exchange, digital signatures, certificates, and encrypting small secrets such as data-encryption keys.
 
-2. **Does TLS make a stored file encrypted at rest?**  
-   No. TLS protects the connection between client and server. The file still needs storage encryption and access control where it is kept.
+### Q2. Why is key management described as the weakest link, not the algorithm?  
+   Strong algorithms such as AES and RSA are ineffective if keys are exposed, copied into source code, stored insecurely, shared with too many people, or deleted accidentally. Real security depends on how keys are generated, stored, accessed, rotated, audited, backed up, and retired. An attacker who obtains a valid decryption key does not need to break the encryption algorithm.
 
-3. **Why is the self-signed certificate unsuitable for a public production site?**  
-   A browser cannot establish a trusted chain to a self-signed certificate by default. Production services should use a certificate from a trusted CA, renew it automatically, and keep the private key protected.
+### Q3. Explain envelope encryption and why only the master key needs hardware-grade protection.  
+   Envelope encryption uses a temporary data-encryption key to encrypt the actual file locally. That data key is then encrypted (“wrapped”) by a KMS master key. The encrypted file and wrapped data key can be stored together safely; the plaintext data key is discarded after use. Only the small, long-lived master key needs strong hardware-backed protection because it unlocks the data keys, not every large file directly.
 
-4. **What does the Task 6 error demonstrate?**  
-   It shows that key state is enforced by KMS. Once deletion is scheduled, applications cannot continue using the key as though nothing changed.
+### Q4. How does cryptographic erasure achieve provable deletion where overwriting cannot in the cloud? 
+  Cryptographic erasure destroys or disables the key needed to decrypt encrypted data. The remaining ciphertext may still exist in backups, replicas, or cloud storage, but it becomes computationally unreadable because the decryption key is unavailable. Overwriting is less reliable in cloud environments because data may have multiple copies outside the user’s direct control.
+
+### Q5. How does a hash chain make a log tamper-evident?
+  In a hash chain, every log entry includes the hash of the previous entry. Changing one earlier entry changes its hash, which then breaks the link to every later entry. This makes tampering detectable when the expected final hash or a trusted checkpoint is retained separately.
 
 ## Security best-practices checklist
 
