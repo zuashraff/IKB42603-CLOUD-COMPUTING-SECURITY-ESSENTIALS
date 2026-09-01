@@ -202,10 +202,6 @@ docker network rm frontend-net backend-net 2>/dev/null
 kind delete cluster --name ccse-lab4
 ```
 
-## Screenshots
-
-Each task's redacted evidence image is embedded immediately after its result. The original evidence files are unchanged. Opaque pixelation removes exposed container/image/network identifiers, the TOTP secret and code, the internal IP address, and the numeric container user ID.
-
 ## Short-Answer Questions
 
 ### Q1. Explain the difference between authentication and authorization using Tasks 1 and 3.
