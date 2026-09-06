@@ -1,6 +1,7 @@
-# Lab 5: Monitoring, Logging & Incident Detection
+# IKB42603 Cloud Computing Security Essentials
+## Lab 5: Monitoring, Logging & Incident Detection
 
-**Name:** Affiq  
+**Name:** Affiq
 **Student ID:** 52215124425
 
 ## 1. Objective
@@ -262,31 +263,47 @@ Central logging is useful only when events have consistent fields and can be que
 
 ## 9. Short-Answer Questions
 
-### 1. Why is centralized logging important?
+## Q1. What is the difference between a log and an event?
 
-It provides one place to search, retain, and correlate events from different systems. Centralized logs reduce the chance that an attacker can hide activity by modifying only a local log and allow investigators to reconstruct the timeline more efficiently.
+**Answer:**
 
-### 2. What indicates a brute-force attack in this scenario?
+A log is a stored record the `LOGIN_FAIL` line, whereas an event is an actionable real-time alert (the exfiltration alert).
 
-Four `LOGIN_FAIL` events target `user=admin` from `203.0.113.9` in a short period. Repeated failures against the same account from one source are a common brute-force or password-guessing indicator.
+## Q2. Why must audit logs be tamper-proof?
 
-### 3. Why is the later successful login more serious than the failed attempts?
+**Answer:**
 
-It occurred from the same IP after the failed attempts. This changes the assessment from an attempted attack to a probable account compromise, especially because it is followed by `EXPORT_DATA`.
+Logs must be tamper-proof to prevent attackers from covering tracks. Hash-chaining links each entry so modifying anything breaks the chain and changes the final hash.
 
-### 4. Why use a hash chain instead of a single hash only?
+## Q3. How did correlation detect the incident?
 
-A single final-file hash detects that a file changed, but a hash chain links every record to the record before it. Altering, inserting, or removing an earlier record changes the hashes for subsequent records, making the log sequence tamper-evident.
+**Answer:**
 
-### 5. What is the purpose of the `iptables` rule?
+Single lines appear harmless, but correlating events by IP `203.0.113.9` uncovered the full sequence: 4 failed attempts, 1 successful breach, and 1 large data export.
 
-`iptables -A INPUT -s 203.0.113.9 -j DROP` blocks incoming traffic from the identified source. It is a containment action intended to limit further malicious activity while investigation continues.
+## Q4. List the incident-response steps performed.
 
-### 6. What should be done after the alert?
+**Answer:**
 
-Preserve the logs and hashes, block or otherwise contain the suspicious source, investigate the affected `admin` account and exported data, rotate/reset credentials as appropriate, review related systems for the same indicators, and document the incident timeline.
+The steps were **detection** (flagging the attack pattern), **containment** (dropping the IP with `iptables`), **evidence collection** (hashing and saving log copies), and **documentation** (incident reporting).
 
-## 10. Verification Command Including Screenshot
+## Q5. How can logs be used for security and compliance?
+
+**Answer:**
+
+Centralized logs feed real-time threat detection (monitoring) while immutable, hashed logs provide audit trails required by regulators (compliance).
+
+## Security Best-Practices Checklist
+
+- [x] Logs are centralised.
+- [x] Failed login activity can be queried.
+- [x] Logs are tamper-evident using a hash chain.
+- [x] Multiple events are correlated to detect an incident.
+- [x] The attacker is contained.
+- [x] Evidence is collected and hashed.
+- [x] The incident is documented.
+
+## 10. Verification Command
 
 The lab verifies both central logging and evidence integrity with:
 
