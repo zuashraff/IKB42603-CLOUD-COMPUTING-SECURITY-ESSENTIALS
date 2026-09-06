@@ -1,7 +1,7 @@
-# Lab 5: Monitoring, Logging & Incident Detection
+# IKB42603 Cloud Computing Security Essentials
+## Lab 5: Monitoring, Logging & Incident Detection
 
-**Name:** Affiq  
-**Student ID:** 52215124425
+**Name:** Affiq **Student ID:** 52215124425
 
 ## 1. Objective
 
@@ -145,18 +145,52 @@ The Docker command isolates the firewall test in a short-lived Alpine container,
 
 ## 5. Commands Used
 
-| Command/tool | Use in this lab |
-| --- | --- |
-| `cat` and here-document | Create and display the authentication log. |
-| `aws logs create-log-group`, `create-log-stream`, `put-log-events`, `get-log-events` | Create, send, and retrieve central logs. |
-| `grep`, `awk`, `sort`, `uniq -c` | Filter and count failed login events. |
-| `sha256sum`, `printf`, `cut` | Produce chained and standalone evidence hashes. |
-| `sed` | Create a deliberately altered test copy. |
-| Shell variables and `if` | Correlate event counts and raise an alert. |
-| `docker`, `iptables` | Apply and display the test containment rule. |
-| `cp`, `date` | Preserve evidence with a date-based filename. |
+### Task 1
 
-## 6. Screenshots for Each Task
+```bash
+cat auth.log
+```
+
+### Task 2
+
+```bash
+EP='--endpoint-url=http://localhost:4566'
+aws $EP logs create-log-group --log-group-name /ccse/app
+aws $EP logs create-log-stream --log-group-name /ccse/app --log-stream-name auth
+aws $EP logs get-log-events --log-group-name /ccse/app --log-stream-name auth
+```
+
+### Task 3
+
+```bash
+grep LOGIN_FAIL auth.log | awk '{print $4, $5}' | sort | uniq -c
+```
+
+### Task 4
+
+```bash
+sha256sum
+sed 's/500MB/5MB/' auth.log > auth.tampered
+```
+
+### Task 5
+
+```bash
+grep -c "LOGIN_FAIL.*$IP" auth.log
+grep -c "LOGIN_OK.*$IP" auth.log
+grep -c "EXPORT_DATA.*$IP" auth.log
+```
+
+### Task 6
+
+```bash
+iptables -A INPUT -s 203.0.113.9 -j DROP
+cp auth.log evidence_$(date +%Y%m%d).log
+sha256sum evidence_*.log > evidence.sha256
+```
+
+
+## 6. Screenshots
 
 | Task | Evidence file | What it demonstrates |
 | --- | --- | --- |
