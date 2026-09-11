@@ -1,11 +1,12 @@
-# IKB42603 Lab 6: Object Storage Security and the Data Security Lifecycle
+# IKB42603 Cloud Security Essentials
 
-| Item | Details |
-|---|---|
-| Student | Affiq |
-| Student ID | 52215124425 |
-| Lecturer | Madam Adani |
-| Lab | Lab 6 — Object Storage Security and the Data Security Lifecycle |
+### Lab 6: Object Storage Security: S3 Access Control, Encryption & Lifecycle Posture
+
+**Name:** Affiq
+**Student ID:** 52215124425
+**Lecturer:** Madam Adani
+
+---
 
 ## Objective
 
